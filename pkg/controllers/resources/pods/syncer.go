@@ -206,6 +206,18 @@ var _ syncer.Syncer = &podSyncer{}
 
 func (s *podSyncer) SyncDown(ctx *synccontext.SyncContext, vObj client.Object) (ctrl.Result, error) {
 	vPod := vObj.(*corev1.Pod)
+
+	if vPod.Spec.NodeName != "" {
+		node := &corev1.Node{}
+		err := ctx.VirtualClient.Get(ctx.Context, types.NamespacedName{Name: vPod.Spec.NodeName}, node)
+		if err == nil {
+			if _, ok := node.Labels["vcluster.loft.sh/fake-node"]; !ok {
+				ctx.Log.Infof("skip sync the pod on real node, %v", vPod)
+				return ctrl.Result{}, err
+			}
+		}
+	}
+
 	// in some scenarios it is possible that the pod was already started and the physical pod
 	// was deleted without vcluster's knowledge. In this case we are deleting the virtual pod
 	// as well, to avoid conflicts with nodes if we would resync the same pod to the host cluster again.
@@ -409,6 +421,17 @@ func (s *podSyncer) addPhysicalPathToVolumesAndCorrectContainers(ctx *synccontex
 func (s *podSyncer) Sync(ctx *synccontext.SyncContext, pObj client.Object, vObj client.Object) (ctrl.Result, error) {
 	vPod := vObj.(*corev1.Pod)
 	pPod := pObj.(*corev1.Pod)
+
+	if vPod.Spec.NodeName != "" {
+		node := &corev1.Node{}
+		err := ctx.VirtualClient.Get(ctx.Context, types.NamespacedName{Name: vPod.Spec.NodeName}, node)
+		if err == nil {
+			if _, ok := node.Labels["vcluster.loft.sh/fake-node"]; !ok {
+				ctx.Log.Infof("skip sync the pod on real node, %v", vPod)
+				return ctrl.Result{}, err
+			}
+		}
+	}
 
 	// should pod get deleted?
 	if pPod.DeletionTimestamp != nil {
