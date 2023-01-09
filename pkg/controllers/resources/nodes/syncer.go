@@ -2,6 +2,7 @@ package nodes
 
 import (
 	"context"
+
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
@@ -217,6 +218,9 @@ var _ syncer.Syncer = &nodeSyncer{}
 func (s *nodeSyncer) SyncDown(ctx *synccontext.SyncContext, vObj client.Object) (ctrl.Result, error) {
 	vNode := vObj.(*corev1.Node)
 	ctx.Log.Infof("delete virtual node %s, because it is not needed anymore", vNode.Name)
+	if _, ok := vNode.Labels["vcluster.loft.sh/fake-node"]; !ok {
+		return ctrl.Result{}, nil
+	}
 	return ctrl.Result{}, ctx.VirtualClient.Delete(ctx.Context, vObj)
 }
 

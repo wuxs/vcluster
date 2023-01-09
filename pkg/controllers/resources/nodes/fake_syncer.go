@@ -81,7 +81,9 @@ func (r *fakeNodeSyncer) FakeSync(ctx *synccontext.SyncContext, vObj client.Obje
 	} else if needed {
 		return ctrl.Result{}, nil
 	}
-
+	if _, ok := node.Labels["vcluster.loft.sh/fake-node"]; !ok {
+		return ctrl.Result{}, nil
+	}
 	ctx.Log.Infof("Delete fake node %s as it is not needed anymore", vObj.GetName())
 	return ctrl.Result{}, ctx.VirtualClient.Delete(ctx.Context, vObj)
 }
