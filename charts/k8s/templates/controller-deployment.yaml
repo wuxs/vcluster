@@ -119,9 +119,7 @@ spec:
           - '--cluster-name=kubernetes'
           - '--cluster-signing-cert-file=/run/config/pki/ca.crt'
           - '--cluster-signing-key-file=/run/config/pki/ca.key'
-          - '--controllers=*,-nodeipam,-persistentvolume-binder,-attachdetach,-persistentvolume-expander,-cloud-node-lifecycle,-ttl'
-          - '--node-monitor-grace-period=1h'
-          - '--node-monitor-period=1h'
+          - '--controllers=*,-nodeipam,-nodelifecycle,-persistentvolume-binder,-attachdetach,-persistentvolume-expander,-cloud-node-lifecycle,-ttl'
           - '--horizontal-pod-autoscaler-sync-period=60s'
           - '--kubeconfig=/run/config/pki/controller-manager.conf'
           {{- if .Values.serviceCIDR }}

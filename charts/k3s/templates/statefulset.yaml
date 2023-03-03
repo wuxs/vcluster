@@ -157,10 +157,8 @@ spec:
           {{- range $f := .Values.vcluster.baseArgs }}
             {{ $f }}
           {{- end }}
-            --kube-controller-manager-arg=controllers=*,-nodeipam,-persistentvolume-binder,-attachdetach,-persistentvolume-expander,-cloud-node-lifecycle,-ttl
+            --kube-controller-manager-arg=controllers=*,-nodeipam,-nodelifecycle,-persistentvolume-binder,-attachdetach,-persistentvolume-expander,-cloud-node-lifecycle,-ttl
             --kube-apiserver-arg=endpoint-reconciler-type=none
-            --kube-controller-manager-arg=node-monitor-grace-period=1h
-            --kube-controller-manager-arg=node-monitor-period=1h
           {{- if .Values.serviceCIDR }}
             --service-cidr={{ .Values.serviceCIDR }}
           {{- else }}
