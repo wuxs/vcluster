@@ -1,6 +1,7 @@
 package filters
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apiserver/pkg/admission"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	"k8s.io/apiserver/pkg/endpoints/request"
@@ -22,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func WithRedirect(h http.Handler, localConfig *rest.Config, localScheme *runtime.Scheme, uncachedVirtualClient client.Client, admit admission.Interface, targetNamespace string, resources []delegatingauthorizer.GroupVersionResourceVerb) http.Handler {
+func WithRedirect(h http.Handler, localConfig, virtualConfig *rest.Config, localScheme *runtime.Scheme, uncachedVirtualClient client.Client, admit admission.Interface, targetNamespace string, resources []delegatingauthorizer.GroupVersionResourceVerb) http.Handler {
 	s := serializer.NewCodecFactory(localScheme)
 	parameterCodec := runtime.NewParameterCodec(uncachedVirtualClient.Scheme())
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -39,7 +41,7 @@ func WithRedirect(h http.Handler, localConfig *rest.Config, localScheme *runtime
 				responsewriters.ErrorNegotiated(err, s, corev1.SchemeGroupVersion, w, req)
 				return
 			}
-
+			config := virtualConfig
 			// we have to change the request url
 			if info.Resource != "nodes" {
 				if info.Namespace == "" {
@@ -52,13 +54,30 @@ func WithRedirect(h http.Handler, localConfig *rest.Config, localScheme *runtime
 					responsewriters.ErrorNegotiated(kerrors.NewBadRequest("unexpected url"), s, corev1.SchemeGroupVersion, w, req)
 					return
 				}
+				// If the node where pod resides is a virtual node, convert the name
+				if info.Resource == "pods" {
+					namespace := splitted[4]
+					name := splitted[6]
+					pod := &corev1.Pod{}
+					ctx := context.Background()
+					err := uncachedVirtualClient.Get(ctx, types.NamespacedName{namespace, name}, pod)
+					if err == nil {
+						node := &corev1.Node{}
+						err := uncachedVirtualClient.Get(ctx, types.NamespacedName{namespace, pod.Spec.NodeName}, node)
+						if err == nil {
+							if _, ok := node.Labels["vcluster.loft.sh/fake-node"]; ok {
+								// exchange namespace & name
+								splitted[4] = targetNamespace
 
-				// exchange namespace & name
-				splitted[4] = targetNamespace
+								// make sure we keep the prefix and suffix
+								targetName := translate.PhysicalName(splitted[6], info.Namespace)
+								splitted[6] = targetName
+								config = localConfig
+							}
+						}
+					}
+				}
 
-				// make sure we keep the prefix and suffix
-				targetName := translate.PhysicalName(splitted[6], info.Namespace)
-				splitted[6] = targetName
 				req.URL.Path = strings.Join(splitted, "/")
 
 				// we have to add a trailing slash here, because otherwise the
@@ -68,7 +87,7 @@ func WithRedirect(h http.Handler, localConfig *rest.Config, localScheme *runtime
 				}
 			}
 
-			h, err := handler.Handler("", localConfig, nil)
+			h, err := handler.Handler("", config, nil)
 			if err != nil {
 				requestpkg.FailWithStatus(w, req, http.StatusInternalServerError, err)
 				return
