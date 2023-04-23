@@ -58,7 +58,7 @@ jobs:
         uses: crazy-max/ghaction-docker-meta@v2
         with:
           images: |
-            loftsh/vcluster
+            kubesphere/vcluster
           tags: |
             type=semver,pattern={{version}}
             type=raw,value=latest
@@ -84,7 +84,7 @@ jobs:
         run: echo ${{ steps.docker_build.outputs.digest }}
       - name: Sign Container Image
         run: |
-          COSIGN_EXPERIMENTAL=1 cosign sign --force loftsh/vcluster@${{ steps.docker_build.outputs.digest }}
+          COSIGN_EXPERIMENTAL=1 cosign sign --force kubesphere/vcluster@${{ steps.docker_build.outputs.digest }}
   publish-vcluster-cli-image:
     if: startsWith(github.ref, 'refs/tags/v') == true
     runs-on: ubuntu-22.04
@@ -102,7 +102,7 @@ jobs:
         uses: crazy-max/ghaction-docker-meta@v2
         with:
           images: |
-            loftsh/vcluster-cli
+            kubesphere/vcluster-cli
           tags: |
             type=semver,pattern={{version}}
             type=raw,value=latest
@@ -128,29 +128,29 @@ jobs:
         run: echo ${{ steps.docker_build.outputs.digest }}
       - name: Sign Container Image
         run: |
-          COSIGN_EXPERIMENTAL=1 cosign sign --force loftsh/vcluster-cli@${{ steps.docker_build.outputs.digest }}
-  publish-chart:
-    if: startsWith(github.ref, 'refs/tags/v') == true
-    needs: [publish-vcluster-image, publish-vcluster-cli-image]
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-      - uses: azure/setup-helm@v1
-        with:
-          version: 'v3.0.2'
-      - run: |
-          RELEASE_VERSION=$(echo $GITHUB_REF | sed -nE 's!refs/tags/v!!p')
-          helm plugin install https://github.com/chartmuseum/helm-push.git
-          helm repo add chartmuseum $CHART_MUSEUM_URL --username $CHART_MUSEUM_USER --password $CHART_MUSEUM_PASSWORD
-          helm cm-push --force --version="$RELEASE_VERSION" charts/k3s/ chartmuseum
-          helm cm-push --force --version="$RELEASE_VERSION" charts/k0s/ chartmuseum
-          helm cm-push --force --version="$RELEASE_VERSION" charts/k8s/ chartmuseum
-          helm cm-push --force --version="$RELEASE_VERSION" charts/eks/ chartmuseum
-        env:
-          CHART_MUSEUM_URL: "https://charts.loft.sh/"
-          CHART_MUSEUM_USER: ${{ secrets.CHART_MUSEUM_USER }}
-          CHART_MUSEUM_PASSWORD: ${{ secrets.CHART_MUSEUM_PASSWORD }}
+          COSIGN_EXPERIMENTAL=1 cosign sign --force kubesphere/vcluster-cli@${{ steps.docker_build.outputs.digest }}
+#   publish-chart:
+#     if: startsWith(github.ref, 'refs/tags/v') == true
+#     needs: [publish-vcluster-image, publish-vcluster-cli-image]
+#     runs-on: ubuntu-22.04
+#     steps:
+#       - name: Check out code
+#         uses: actions/checkout@v2
+#       - uses: azure/setup-helm@v1
+#         with:
+#           version: 'v3.0.2'
+#       - run: |
+#           RELEASE_VERSION=$(echo $GITHUB_REF | sed -nE 's!refs/tags/v!!p')
+#           helm plugin install https://github.com/chartmuseum/helm-push.git
+#           helm repo add chartmuseum $CHART_MUSEUM_URL --username $CHART_MUSEUM_USER --password $CHART_MUSEUM_PASSWORD
+#           helm cm-push --force --version="$RELEASE_VERSION" charts/k3s/ chartmuseum
+#           helm cm-push --force --version="$RELEASE_VERSION" charts/k0s/ chartmuseum
+#           helm cm-push --force --version="$RELEASE_VERSION" charts/k8s/ chartmuseum
+#           helm cm-push --force --version="$RELEASE_VERSION" charts/eks/ chartmuseum
+#         env:
+#           CHART_MUSEUM_URL: "https://charts.loft.sh/"
+#           CHART_MUSEUM_USER: ${{ secrets.CHART_MUSEUM_USER }}
+#           CHART_MUSEUM_PASSWORD: ${{ secrets.CHART_MUSEUM_PASSWORD }}
   publish-release:
     if: startsWith(github.ref, 'refs/tags/v') == true
     needs: [publish-chart]
