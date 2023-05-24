@@ -79,7 +79,9 @@ func (r *fakeNodeSyncer) FakeSync(ctx *synccontext.SyncContext, vObj client.Obje
 	if err != nil {
 		return ctrl.Result{}, err
 	} else if needed {
-		return ctrl.Result{}, nil
+		ctx.Log.Infof("Update fake node status, ns: %s ,name: %s", node.Namespace, node.Name)
+		name := types.NamespacedName{Namespace: node.Namespace, Name: node.Name}
+		return ctrl.Result{}, UpdateFakeNode(ctx.Context, r.nodeServiceProvider, ctx.VirtualClient, name)
 	}
 	if _, ok := node.Labels["vcluster.loft.sh/fake-node"]; !ok {
 		return ctrl.Result{}, nil
@@ -205,6 +207,68 @@ func CreateFakeNode(ctx context.Context, nodeServiceProvider nodeservice.NodeSer
 			OSImage:                 "Fake Kubernetes Image",
 		},
 		Images: []corev1.ContainerImage{},
+	}
+	err = virtualClient.Status().Patch(ctx, node, client.MergeFrom(orig))
+	if err != nil {
+		return err
+	}
+
+	// remove not ready taints
+	orig = node.DeepCopy()
+	node.Spec.Taints = []corev1.Taint{}
+	err = virtualClient.Patch(ctx, node, client.MergeFrom(orig))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UpdateFakeNode(ctx context.Context, nodeServiceProvider nodeservice.NodeServiceProvider, virtualClient client.Client, name types.NamespacedName) error {
+	nodeServiceProvider.Lock()
+	defer nodeServiceProvider.Unlock()
+	var err error
+	node := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name.Name,
+		},
+	}
+	orig := node.DeepCopy()
+	node.Status = corev1.NodeStatus{
+		Conditions: []corev1.NodeCondition{
+			{
+				LastHeartbeatTime:  metav1.Now(),
+				LastTransitionTime: metav1.Now(),
+				Message:            "kubelet has sufficient memory available",
+				Reason:             "KubeletHasSufficientMemory",
+				Status:             "False",
+				Type:               corev1.NodeMemoryPressure,
+			},
+			{
+				LastHeartbeatTime:  metav1.Now(),
+				LastTransitionTime: metav1.Now(),
+				Message:            "kubelet has no disk pressure",
+				Reason:             "KubeletHasNoDiskPressure",
+				Status:             "False",
+				Type:               corev1.NodeDiskPressure,
+			},
+			{
+				LastHeartbeatTime:  metav1.Now(),
+				LastTransitionTime: metav1.Now(),
+				Message:            "kubelet has sufficient PID available",
+				Reason:             "KubeletHasSufficientPID",
+				Status:             "False",
+				Type:               corev1.NodePIDPressure,
+			},
+			{
+				LastHeartbeatTime:  metav1.Now(),
+				LastTransitionTime: metav1.Now(),
+				Message:            "kubelet is posting ready status",
+				Reason:             "KubeletReady",
+				Status:             "True",
+				Type:               corev1.NodeReady,
+			},
+		},
 	}
 	err = virtualClient.Status().Patch(ctx, node, client.MergeFrom(orig))
 	if err != nil {
