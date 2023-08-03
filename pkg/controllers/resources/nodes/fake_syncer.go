@@ -74,7 +74,9 @@ func (r *fakeNodeSyncer) FakeSync(ctx *synccontext.SyncContext, vObj client.Obje
 	if !ok || node == nil {
 		return ctrl.Result{}, fmt.Errorf("%#v is not a node", vObj)
 	}
-
+	if _, ok := node.Labels["vcluster.loft.sh/fake-node"]; !ok {
+		return ctrl.Result{}, nil
+	}
 	needed, err := r.nodeNeeded(ctx, node.Name)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -82,9 +84,6 @@ func (r *fakeNodeSyncer) FakeSync(ctx *synccontext.SyncContext, vObj client.Obje
 		ctx.Log.Infof("Update fake node status, ns: %s ,name: %s", node.Namespace, node.Name)
 		name := types.NamespacedName{Namespace: node.Namespace, Name: node.Name}
 		return ctrl.Result{}, UpdateFakeNode(ctx.Context, r.nodeServiceProvider, ctx.VirtualClient, name)
-	}
-	if _, ok := node.Labels["vcluster.loft.sh/fake-node"]; !ok {
-		return ctrl.Result{}, nil
 	}
 	ctx.Log.Infof("Delete fake node %s as it is not needed anymore", vObj.GetName())
 	return ctrl.Result{}, ctx.VirtualClient.Delete(ctx.Context, vObj)
