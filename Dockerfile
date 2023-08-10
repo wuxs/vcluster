@@ -33,7 +33,7 @@ ENV GOENV=/.config
 # Copy and embed the helm charts
 COPY charts/ charts/
 COPY hack/ hack/
-#RUN go generate ./...
+RUN go generate ./...
 
 # Set home to "/" in order to for kubectl to automatically pick up vcluster kube config 
 ENV HOME /
