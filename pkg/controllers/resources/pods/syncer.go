@@ -3,7 +3,7 @@ package pods
 import (
 	"context"
 	"fmt"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"path/filepath"
 	"reflect"
 	"strings"

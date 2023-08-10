@@ -2,7 +2,7 @@ package edgewize
 
 import (
 	"context"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -22,7 +22,7 @@ func IsSystemWorkspace(cli client.Client, name string) (bool, error) {
 }
 
 func IsFakeNode(cli client.Client, name string) (bool, error) {
-	if _, ok := edgewize.FakeNodes.Load(node.Name); ok {
+	if _, ok := fakenodes.Load(name); ok {
 		return true, nil
 	}
 	node := &corev1.Node{}
