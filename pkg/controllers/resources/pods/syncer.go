@@ -3,12 +3,13 @@ package pods
 import (
 	"context"
 	"fmt"
-	"github.com/loft-sh/vcluster/pkg/edgewize"
-	"k8s.io/klog/v2"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/loft-sh/vcluster/pkg/edgewize"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -209,7 +210,16 @@ var _ syncer.Syncer = &podSyncer{}
 func (s *podSyncer) SyncDown(ctx *synccontext.SyncContext, vObj client.Object) (ctrl.Result, error) {
 	vPod := vObj.(*corev1.Pod)
 
-	yes, err := edgewize.IsSystemWorkspace(ctx.VirtualClient, vPod.Namespace)
+	yes, err := edgewize.IsFakeNode(ctx.VirtualClient, vPod.Namespace)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if !yes {
+		klog.Infof("Skip sync pod %s/%s because it is not running on fake node", vPod.Namespace, vPod.Name)
+		return ctrl.Result{}, nil
+	}
+
+	yes, err = edgewize.IsSystemWorkspace(ctx.VirtualClient, vPod.Namespace)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
