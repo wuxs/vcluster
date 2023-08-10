@@ -83,6 +83,11 @@ func (r *fakeNodeSyncer) FakeSync(ctx *synccontext.SyncContext, vObj client.Obje
 	if _, ok := edgewize.FakeNodes.Load(node.Name); !ok {
 		return ctrl.Result{}, nil
 	}
+	if yes, err := edgewize.IsFakeNode(ctx.PhysicalClient, node.Name); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "check if node is fake")
+	} else if !yes {
+		return ctrl.Result{}, nil
+	}
 
 	needed, err := r.nodeNeeded(ctx, node.Name)
 	if err != nil {
