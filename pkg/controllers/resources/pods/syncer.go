@@ -210,9 +210,11 @@ var _ syncer.Syncer = &podSyncer{}
 func (s *podSyncer) SyncDown(ctx *synccontext.SyncContext, vObj client.Object) (ctrl.Result, error) {
 	vPod := vObj.(*corev1.Pod)
 
+	klog.Infof("Syncing pod %s/%s down, node: %s", vPod.Namespace, vPod.Name, vPod.Spec.NodeName)
 	if vPod.Spec.NodeName != "" {
 		yes, err := edgewize.IsFakeNode(ctx.VirtualClient, vPod.Spec.NodeName)
 		if err != nil {
+			klog.Errorf("Failed to check if pod %s/%s is running on fake node: %v", vPod.Namespace, vPod.Name, err)
 			return ctrl.Result{}, err
 		}
 		if !yes {
@@ -223,6 +225,7 @@ func (s *podSyncer) SyncDown(ctx *synccontext.SyncContext, vObj client.Object) (
 
 	yes, err := edgewize.IsSystemWorkspace(ctx.VirtualClient, vPod.Namespace)
 	if err != nil {
+		klog.Errorf("Failed to check if pod %s/%s is running on system namespace: %v", vPod.Namespace, vPod.Name, err)
 		return ctrl.Result{}, err
 	}
 	if !yes {
