@@ -437,6 +437,19 @@ func (s *podSyncer) Sync(ctx *synccontext.SyncContext, pObj client.Object, vObj 
 	vPod := vObj.(*corev1.Pod)
 	pPod := pObj.(*corev1.Pod)
 
+	klog.Infof("Syncing pod %s/%s down, node: %s", vPod.Namespace, vPod.Name, vPod.Spec.NodeName)
+	if vPod.Spec.NodeName != "" {
+		yes, err := edgewize.IsFakeNode(ctx.VirtualClient, vPod.Spec.NodeName)
+		if err != nil {
+			klog.Errorf("Failed to check if pod %s/%s is running on fake node: %v", vPod.Namespace, vPod.Name, err)
+			return ctrl.Result{}, err
+		}
+		if !yes {
+			klog.Infof("Skip sync pod %s/%s because it is not running on fake node", vPod.Namespace, vPod.Name)
+			return ctrl.Result{}, nil
+		}
+	}
+
 	// should pod get deleted?
 	if pPod.DeletionTimestamp != nil {
 		if vPod.DeletionTimestamp == nil {
