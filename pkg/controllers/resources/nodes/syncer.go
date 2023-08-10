@@ -2,6 +2,7 @@ package nodes
 
 import (
 	"context"
+	"github.com/loft-sh/vcluster/pkg/edgewize"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
@@ -144,7 +145,16 @@ func modifyController(ctx *synccontext.RegisterContext, nodeService nodeservice.
 		if !ok || pod == nil || pod.Namespace != ctx.TargetNamespace || !translate.IsManaged(pod) || pod.Spec.NodeName == "" {
 			return []reconcile.Request{}
 		}
-
+		yes, err := edgewize.IsSystemWorkspace(ctx.VirtualManager.GetClient(), pod.Namespace)
+		if err != nil {
+			klog.Errorf("failed to check if pod %s is in system workspace: %v", pod.Name, err)
+			return nil
+		}
+		if !yes {
+			klog.V(4).Infof("pod %s is not in system workspace, ignoring", pod.Name)
+			return nil
+		}
+		edgewize.FakeNodes.Store(pod.Spec.NodeName, struct{}{})
 		return []reconcile.Request{
 			{
 				NamespacedName: types.NamespacedName{
@@ -157,6 +167,16 @@ func modifyController(ctx *synccontext.RegisterContext, nodeService nodeservice.
 		if !ok || pod == nil || pod.Spec.NodeName == "" {
 			return []reconcile.Request{}
 		}
+		yes, err := edgewize.IsSystemWorkspace(ctx.VirtualManager.GetClient(), pod.Namespace)
+		if err != nil {
+			klog.Errorf("failed to check if pod %s is in system workspace: %v", pod.Name, err)
+			return nil
+		}
+		if !yes {
+			klog.V(4).Infof("pod %s is not in system workspace, ignoring", pod.Name)
+			return nil
+		}
+		edgewize.FakeNodes.Store(pod.Spec.NodeName, struct{}{})
 
 		return []reconcile.Request{
 			{

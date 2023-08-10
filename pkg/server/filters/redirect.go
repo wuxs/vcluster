@@ -2,6 +2,7 @@ package filters
 
 import (
 	"fmt"
+	"github.com/loft-sh/vcluster/pkg/edgewize"
 	"net/http"
 	"strings"
 
@@ -18,7 +19,7 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -33,6 +34,19 @@ func WithRedirect(h http.Handler, localConfig *rest.Config, localScheme *runtime
 		}
 
 		if applies(info, resources) {
+			if info.Namespace != "" {
+				yes, err := edgewize.IsSystemWorkspace(uncachedVirtualClient, info.Namespace)
+				if err != nil {
+					requestpkg.FailWithStatus(w, req, http.StatusInternalServerError, fmt.Errorf("failed to check if namespace is system-workspace: %v", err))
+					return
+				}
+				if !yes {
+					klog.V(4).Infof("skipping redirect for namespace %s", info.Namespace)
+					h.ServeHTTP(w, req)
+					return
+				}
+			}
+
 			// call admission webhooks
 			err := callAdmissionWebhooks(req, info, parameterCodec, admit, uncachedVirtualClient)
 			if err != nil {

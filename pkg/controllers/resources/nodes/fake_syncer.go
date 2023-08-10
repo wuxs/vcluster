@@ -3,6 +3,7 @@ package nodes
 import (
 	"context"
 	"fmt"
+	"github.com/loft-sh/vcluster/pkg/edgewize"
 
 	"github.com/loft-sh/vcluster/pkg/controllers/resources/nodes/nodeservice"
 	podtranslate "github.com/loft-sh/vcluster/pkg/controllers/resources/pods/translate"
@@ -58,6 +59,9 @@ func (r *fakeNodeSyncer) ModifyController(ctx *synccontext.RegisterContext, buil
 var _ syncer.FakeSyncer = &fakeNodeSyncer{}
 
 func (r *fakeNodeSyncer) FakeSyncUp(ctx *synccontext.SyncContext, name types.NamespacedName) (ctrl.Result, error) {
+	if _, ok := edgewize.FakeNodes.Load(name.Name); !ok {
+		return ctrl.Result{}, nil
+	}
 	needed, err := r.nodeNeeded(ctx, name.Name)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -73,6 +77,10 @@ func (r *fakeNodeSyncer) FakeSync(ctx *synccontext.SyncContext, vObj client.Obje
 	node, ok := vObj.(*corev1.Node)
 	if !ok || node == nil {
 		return ctrl.Result{}, fmt.Errorf("%#v is not a node", vObj)
+	}
+
+	if _, ok := edgewize.FakeNodes.Load(node.Name); !ok {
+		return ctrl.Result{}, nil
 	}
 
 	needed, err := r.nodeNeeded(ctx, node.Name)
