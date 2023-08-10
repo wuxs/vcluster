@@ -3,6 +3,7 @@ package nodes
 import (
 	"context"
 	"fmt"
+
 	"github.com/loft-sh/vcluster/pkg/edgewize"
 
 	"github.com/loft-sh/vcluster/pkg/controllers/resources/nodes/nodeservice"
@@ -87,7 +88,7 @@ func (r *fakeNodeSyncer) FakeSync(ctx *synccontext.SyncContext, vObj client.Obje
 	if err != nil {
 		return ctrl.Result{}, err
 	} else if needed {
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, UpdateFakeNodeStatus(ctx.Context, r.nodeServiceProvider, ctx.VirtualClient, node)
 	}
 
 	ctx.Log.Infof("Delete fake node %s as it is not needed anymore", vObj.GetName())
@@ -130,7 +131,14 @@ func CreateFakeNode(ctx context.Context, nodeServiceProvider nodeservice.NodeSer
 		return err
 	}
 
-	nodeIP, err := nodeServiceProvider.GetNodeIP(ctx, name)
+	return UpdateFakeNodeStatus(ctx, nodeServiceProvider, virtualClient, node)
+}
+
+func UpdateFakeNodeStatus(ctx context.Context, nodeServiceProvider nodeservice.NodeServiceProvider, virtualClient client.Client, node *corev1.Node) error {
+	nodeServiceProvider.Lock()
+	defer nodeServiceProvider.Unlock()
+
+	nodeIP, err := nodeServiceProvider.GetNodeIP(ctx, types.NamespacedName{Name: node.Name})
 	if err != nil {
 		return errors.Wrap(err, "create fake node ip")
 	}
