@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/loft-sh/vcluster/pkg/edgewize"
+
 	"github.com/loft-sh/vcluster/pkg/controllers/resources/nodes/nodeservice"
 	podtranslate "github.com/loft-sh/vcluster/pkg/controllers/resources/pods/translate"
 	"github.com/loft-sh/vcluster/pkg/controllers/syncer"
@@ -58,6 +60,11 @@ func (r *fakeNodeSyncer) ModifyController(ctx *synccontext.RegisterContext, buil
 var _ syncer.FakeSyncer = &fakeNodeSyncer{}
 
 func (r *fakeNodeSyncer) FakeSyncUp(ctx *synccontext.SyncContext, name types.NamespacedName) (ctrl.Result, error) {
+	if yes, err := edgewize.IsFakeNode(ctx.VirtualClient, name.Name); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "check if node is fake")
+	} else if !yes {
+		return ctrl.Result{}, nil
+	}
 	needed, err := r.nodeNeeded(ctx, name.Name)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -74,7 +81,9 @@ func (r *fakeNodeSyncer) FakeSync(ctx *synccontext.SyncContext, vObj client.Obje
 	if !ok || node == nil {
 		return ctrl.Result{}, fmt.Errorf("%#v is not a node", vObj)
 	}
-	if _, ok := node.Labels["vcluster.loft.sh/fake-node"]; !ok {
+	if yes, err := edgewize.IsFakeNode(ctx.VirtualClient, node.Name); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "check if node is fake")
+	} else if !yes {
 		return ctrl.Result{}, nil
 	}
 	needed, err := r.nodeNeeded(ctx, node.Name)
@@ -208,14 +217,6 @@ func CreateFakeNode(ctx context.Context, nodeServiceProvider nodeservice.NodeSer
 		Images: []corev1.ContainerImage{},
 	}
 	err = virtualClient.Status().Patch(ctx, node, client.MergeFrom(orig))
-	if err != nil {
-		return err
-	}
-
-	// remove not ready taints
-	orig = node.DeepCopy()
-	node.Spec.Taints = []corev1.Taint{}
-	err = virtualClient.Patch(ctx, node, client.MergeFrom(orig))
 	if err != nil {
 		return err
 	}
