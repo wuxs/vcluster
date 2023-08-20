@@ -3,11 +3,13 @@ package pods
 import (
 	"context"
 	"fmt"
+	"k8s.io/klog/v2"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
 
+	"github.com/loft-sh/vcluster/pkg/edgewize"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/util/wait"
 
@@ -46,30 +48,30 @@ var (
 // mount path more than once to the same container. This is to
 // tackle edge cases like in kubevirt where we had
 // VolumeMounts
-//	- mountPath: /pods
-//	  name: kubelet-pods-shortened
-// 	- mountPath: /var/lib/kubelet/pods
-//    mountPropagation: Bidirectional
-//    name: kubelet-pods
+//   - mountPath: /pods
+//     name: kubelet-pods-shortened
+//   - mountPath: /var/lib/kubelet/pods
+//     mountPropagation: Bidirectional
+//     name: kubelet-pods
 //
 // and Volumes
-//	- hostPath:
-// 		path: /var/lib/kubelet/pods
-// 		type: ""
-// 	  name: kubelet-pods-shortened
-//	- hostPath:
-// 		path: /var/lib/kubelet/pods
-// 		type: ""
-// 	  name: kubelet-pods
+//   - hostPath:
+//     path: /var/lib/kubelet/pods
+//     type: ""
+//     name: kubelet-pods-shortened
+//   - hostPath:
+//     path: /var/lib/kubelet/pods
+//     type: ""
+//     name: kubelet-pods
 //
 // causing the physical physical path to be mounted twice, one for each above
 // virtual volumeMounts
 // ---
-// - name: kubelet-pods-shortened-vcluster-physical
-//   mountPath: "/var/vcluster/physical/kubelet/pods"
-// - name: kubelet-pods-vcluster-physical
-//   mountPath: "/var/vcluster/physical/kubelet/pods"
-//   mountPropagation: Bidirectional
+//   - name: kubelet-pods-shortened-vcluster-physical
+//     mountPath: "/var/vcluster/physical/kubelet/pods"
+//   - name: kubelet-pods-vcluster-physical
+//     mountPath: "/var/vcluster/physical/kubelet/pods"
+//     mountPropagation: Bidirectional
 type ContainerPhysicalMountPathRegister struct {
 	KubeletMountPath map[string]bool
 	PodLogMountPath  map[string]bool
@@ -207,15 +209,27 @@ var _ syncer.Syncer = &podSyncer{}
 func (s *podSyncer) SyncDown(ctx *synccontext.SyncContext, vObj client.Object) (ctrl.Result, error) {
 	vPod := vObj.(*corev1.Pod)
 
+	klog.Infof("Syncing pod %s/%s down, node: %s", vPod.Namespace, vPod.Name, vPod.Spec.NodeName)
 	if vPod.Spec.NodeName != "" {
-		node := &corev1.Node{}
-		err := ctx.VirtualClient.Get(ctx.Context, types.NamespacedName{Name: vPod.Spec.NodeName}, node)
-		if err == nil {
-			if _, ok := node.Labels["vcluster.loft.sh/fake-node"]; !ok {
-				ctx.Log.Infof("skip sync the pod on real node, %v", vPod)
-				return ctrl.Result{}, err
-			}
+		yes, err := edgewize.IsFakeNode(ctx.VirtualClient, vPod.Spec.NodeName)
+		if err != nil {
+			klog.Errorf("Failed to check if pod %s/%s is running on fake node: %v", vPod.Namespace, vPod.Name, err)
+			return ctrl.Result{}, err
 		}
+		if !yes {
+			klog.Infof("Skip sync pod %s/%s because it is not running on fake node", vPod.Namespace, vPod.Name)
+			return ctrl.Result{}, nil
+		}
+	}
+
+	yes, err := edgewize.IsSystemWorkspace(ctx.VirtualClient, vPod.Namespace)
+	if err != nil {
+		klog.Errorf("Failed to check if pod %s/%s is running on system namespace: %v", vPod.Namespace, vPod.Name, err)
+		return ctrl.Result{}, err
+	}
+	if !yes {
+		klog.Infof("Skip sync pod %s/%s because it is not running on system namespace", vPod.Namespace, vPod.Name)
+		return ctrl.Result{}, nil
 	}
 
 	// in some scenarios it is possible that the pod was already started and the physical pod
@@ -422,14 +436,16 @@ func (s *podSyncer) Sync(ctx *synccontext.SyncContext, pObj client.Object, vObj 
 	vPod := vObj.(*corev1.Pod)
 	pPod := pObj.(*corev1.Pod)
 
+	klog.Infof("Syncing pod %s/%s down, node: %s", vPod.Namespace, vPod.Name, vPod.Spec.NodeName)
 	if vPod.Spec.NodeName != "" {
-		node := &corev1.Node{}
-		err := ctx.VirtualClient.Get(ctx.Context, types.NamespacedName{Name: vPod.Spec.NodeName}, node)
-		if err == nil {
-			if _, ok := node.Labels["vcluster.loft.sh/fake-node"]; !ok {
-				ctx.Log.Infof("skip sync the pod on real node, %v", vPod)
-				return ctrl.Result{}, err
-			}
+		yes, err := edgewize.IsFakeNode(ctx.VirtualClient, vPod.Spec.NodeName)
+		if err != nil {
+			klog.Errorf("Failed to check if pod %s/%s is running on fake node: %v", vPod.Namespace, vPod.Name, err)
+			return ctrl.Result{}, err
+		}
+		if !yes {
+			klog.Infof("Skip sync pod %s/%s because it is not running on fake node", vPod.Namespace, vPod.Name)
+			return ctrl.Result{}, nil
 		}
 	}
 

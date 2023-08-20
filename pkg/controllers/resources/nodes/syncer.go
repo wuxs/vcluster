@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"k8s.io/klog/v2"
+
+	"github.com/loft-sh/vcluster/pkg/edgewize"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	"github.com/loft-sh/vcluster/pkg/constants"
@@ -145,20 +147,7 @@ func modifyController(ctx *synccontext.RegisterContext, nodeService nodeservice.
 		if !ok || pod == nil || pod.Namespace != ctx.TargetNamespace || !translate.IsManaged(pod) || pod.Spec.NodeName == "" {
 			return []reconcile.Request{}
 		}
-
-		return []reconcile.Request{
-			{
-				NamespacedName: types.NamespacedName{
-					Name: pod.Spec.NodeName,
-				},
-			},
-		}
-	})).Watches(&source.Kind{Type: &corev1.Pod{}}, handler.EnqueueRequestsFromMapFunc(func(object client.Object) []reconcile.Request {
-		pod, ok := object.(*corev1.Pod)
-		if !ok || pod == nil || pod.Spec.NodeName == "" {
-			return []reconcile.Request{}
-		}
-
+		edgewize.AddFakeNode(pod.Spec.NodeName)
 		return []reconcile.Request{
 			{
 				NamespacedName: types.NamespacedName{
@@ -218,9 +207,6 @@ var _ syncer.Syncer = &nodeSyncer{}
 func (s *nodeSyncer) SyncDown(ctx *synccontext.SyncContext, vObj client.Object) (ctrl.Result, error) {
 	vNode := vObj.(*corev1.Node)
 	ctx.Log.Infof("delete virtual node %s, because it is not needed anymore", vNode.Name)
-	if _, ok := vNode.Labels["vcluster.loft.sh/fake-node"]; !ok {
-		return ctrl.Result{}, nil
-	}
 	return ctrl.Result{}, ctx.VirtualClient.Delete(ctx.Context, vObj)
 }
 
