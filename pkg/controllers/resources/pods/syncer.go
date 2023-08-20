@@ -3,14 +3,13 @@ package pods
 import (
 	"context"
 	"fmt"
+	"k8s.io/klog"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
 
 	"github.com/loft-sh/vcluster/pkg/edgewize"
-	"k8s.io/klog/v2"
-
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/util/wait"
 

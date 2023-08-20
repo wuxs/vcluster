@@ -60,7 +60,9 @@ func (r *fakeNodeSyncer) ModifyController(ctx *synccontext.RegisterContext, buil
 var _ syncer.FakeSyncer = &fakeNodeSyncer{}
 
 func (r *fakeNodeSyncer) FakeSyncUp(ctx *synccontext.SyncContext, name types.NamespacedName) (ctrl.Result, error) {
-	if _, ok := edgewize.FakeNodes.Load(name.Name); !ok {
+	if yes, err := edgewize.IsFakeNode(ctx.VirtualClient, name.Name); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "check if node is fake")
+	} else if !yes {
 		return ctrl.Result{}, nil
 	}
 	needed, err := r.nodeNeeded(ctx, name.Name)
@@ -80,9 +82,6 @@ func (r *fakeNodeSyncer) FakeSync(ctx *synccontext.SyncContext, vObj client.Obje
 		return ctrl.Result{}, fmt.Errorf("%#v is not a node", vObj)
 	}
 
-	if _, ok := edgewize.FakeNodes.Load(node.Name); !ok {
-		return ctrl.Result{}, nil
-	}
 	if yes, err := edgewize.IsFakeNode(ctx.VirtualClient, node.Name); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "check if node is fake")
 	} else if !yes {

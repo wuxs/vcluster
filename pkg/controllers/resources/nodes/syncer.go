@@ -2,9 +2,9 @@ package nodes
 
 import (
 	"context"
+	"k8s.io/klog"
 
 	"github.com/loft-sh/vcluster/pkg/edgewize"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	"github.com/loft-sh/vcluster/pkg/constants"
@@ -146,7 +146,7 @@ func modifyController(ctx *synccontext.RegisterContext, nodeService nodeservice.
 		if !ok || pod == nil || pod.Namespace != ctx.TargetNamespace || !translate.IsManaged(pod) || pod.Spec.NodeName == "" {
 			return []reconcile.Request{}
 		}
-		edgewize.FakeNodes.Store(pod.Spec.NodeName, struct{}{})
+		edgewize.AddFakeNode(pod.Spec.NodeName)
 		return []reconcile.Request{
 			{
 				NamespacedName: types.NamespacedName{

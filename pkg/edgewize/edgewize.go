@@ -2,6 +2,7 @@ package edgewize
 
 import (
 	"context"
+	"k8s.io/klog"
 	"sync"
 
 	corev1 "k8s.io/api/core/v1"
@@ -9,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var FakeNodes = &sync.Map{}
+var fakenodes = &sync.Map{}
 
 func IsSystemWorkspace(cli client.Client, name string) (bool, error) {
 	namespace := &corev1.Namespace{}
@@ -21,10 +22,22 @@ func IsSystemWorkspace(cli client.Client, name string) (bool, error) {
 }
 
 func IsFakeNode(cli client.Client, name string) (bool, error) {
+	if _, ok := edgewize.FakeNodes.Load(node.Name); ok {
+		return true, nil
+	}
 	node := &corev1.Node{}
 	err := cli.Get(context.Background(), types.NamespacedName{Name: name}, node)
 	if err != nil {
+		klog.Errorf("failed to get node %s: %v", name, err)
 		return false, err
+	} else {
+		if node.Labels["vcluster.loft.sh/fake-node"] == "true" {
+			klog.Errorf("node is not fake node, but has label %s", name)
+		}
 	}
-	return node.Labels["vcluster.loft.sh/fake-node"] == "true", nil
+	return false, nil
+}
+
+func AddFakeNode(name string) {
+	fakenodes.Store(name, struct{}{})
 }
