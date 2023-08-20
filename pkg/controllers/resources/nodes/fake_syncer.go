@@ -88,14 +88,14 @@ func (r *fakeNodeSyncer) FakeSync(ctx *synccontext.SyncContext, vObj client.Obje
 	} else if !yes {
 		return ctrl.Result{}, nil
 	}
-
 	needed, err := r.nodeNeeded(ctx, node.Name)
 	if err != nil {
 		return ctrl.Result{}, err
 	} else if needed {
-		return ctrl.Result{}, UpdateFakeNodeStatus(ctx.Context, r.nodeServiceProvider, ctx.VirtualClient, node)
+		ctx.Log.Infof("Update fake node status, ns: %s ,name: %s", node.Namespace, node.Name)
+		name := types.NamespacedName{Namespace: node.Namespace, Name: node.Name}
+		return ctrl.Result{}, UpdateFakeNode(ctx.Context, r.nodeServiceProvider, ctx.VirtualClient, name)
 	}
-
 	ctx.Log.Infof("Delete fake node %s as it is not needed anymore", vObj.GetName())
 	return ctrl.Result{}, ctx.VirtualClient.Delete(ctx.Context, vObj)
 }
@@ -136,14 +136,7 @@ func CreateFakeNode(ctx context.Context, nodeServiceProvider nodeservice.NodeSer
 		return err
 	}
 
-	return UpdateFakeNodeStatus(ctx, nodeServiceProvider, virtualClient, node)
-}
-
-func UpdateFakeNodeStatus(ctx context.Context, nodeServiceProvider nodeservice.NodeServiceProvider, virtualClient client.Client, node *corev1.Node) error {
-	nodeServiceProvider.Lock()
-	defer nodeServiceProvider.Unlock()
-
-	nodeIP, err := nodeServiceProvider.GetNodeIP(ctx, types.NamespacedName{Name: node.Name})
+	nodeIP, err := nodeServiceProvider.GetNodeIP(ctx, name)
 	if err != nil {
 		return errors.Wrap(err, "create fake node ip")
 	}
@@ -224,6 +217,60 @@ func UpdateFakeNodeStatus(ctx context.Context, nodeServiceProvider nodeservice.N
 			OSImage:                 "Fake Kubernetes Image",
 		},
 		Images: []corev1.ContainerImage{},
+	}
+	err = virtualClient.Status().Patch(ctx, node, client.MergeFrom(orig))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UpdateFakeNode(ctx context.Context, nodeServiceProvider nodeservice.NodeServiceProvider, virtualClient client.Client, name types.NamespacedName) error {
+	nodeServiceProvider.Lock()
+	defer nodeServiceProvider.Unlock()
+	var err error
+	node := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name.Name,
+		},
+	}
+	orig := node.DeepCopy()
+	node.Status = corev1.NodeStatus{
+		Conditions: []corev1.NodeCondition{
+			{
+				LastHeartbeatTime:  metav1.Now(),
+				LastTransitionTime: metav1.Now(),
+				Message:            "kubelet has sufficient memory available",
+				Reason:             "KubeletHasSufficientMemory",
+				Status:             "False",
+				Type:               corev1.NodeMemoryPressure,
+			},
+			{
+				LastHeartbeatTime:  metav1.Now(),
+				LastTransitionTime: metav1.Now(),
+				Message:            "kubelet has no disk pressure",
+				Reason:             "KubeletHasNoDiskPressure",
+				Status:             "False",
+				Type:               corev1.NodeDiskPressure,
+			},
+			{
+				LastHeartbeatTime:  metav1.Now(),
+				LastTransitionTime: metav1.Now(),
+				Message:            "kubelet has sufficient PID available",
+				Reason:             "KubeletHasSufficientPID",
+				Status:             "False",
+				Type:               corev1.NodePIDPressure,
+			},
+			{
+				LastHeartbeatTime:  metav1.Now(),
+				LastTransitionTime: metav1.Now(),
+				Message:            "kubelet is posting ready status",
+				Reason:             "KubeletReady",
+				Status:             "True",
+				Type:               corev1.NodeReady,
+			},
+		},
 	}
 	err = virtualClient.Status().Patch(ctx, node, client.MergeFrom(orig))
 	if err != nil {
