@@ -34,7 +34,27 @@ func WithRedirect(h http.Handler, localConfig *rest.Config, localScheme *runtime
 		}
 
 		if applies(info, resources) {
-			if info.Namespace != "" {
+			if info.Namespace != "" && info.Resource == "pods" {
+				pod := &corev1.Pod{}
+				err := uncachedVirtualClient.Get(req.Context(), client.ObjectKey{Name: info.Name, Namespace: info.Namespace}, pod)
+				if err != nil {
+					klog.Errorf("failed to get pod %s/%s: %v", info.Namespace, info.Name, err)
+					requestpkg.FailWithStatus(w, req, http.StatusInternalServerError, fmt.Errorf("failed to get pod %s/%s: %v", info.Namespace, info.Name, err))
+					return
+				}
+				if pod.Spec.NodeName != "" {
+					yes, err := edgewize.IsFakeNode(uncachedVirtualClient, pod.Spec.NodeName)
+					if err != nil {
+						klog.Errorf("failed to check if node is fake: %v", err)
+						requestpkg.FailWithStatus(w, req, http.StatusInternalServerError, fmt.Errorf("failed to check if node is fake: %v", err))
+						return
+					}
+					if !yes {
+						klog.V(4).Infof("skipping redirect for namespace %s", info.Namespace)
+						h.ServeHTTP(w, req)
+						return
+					}
+				}
 				yes, err := edgewize.IsSystemWorkspace(uncachedVirtualClient, info.Namespace)
 				if err != nil {
 					requestpkg.FailWithStatus(w, req, http.StatusInternalServerError, fmt.Errorf("failed to check if namespace is system-workspace: %v", err))
