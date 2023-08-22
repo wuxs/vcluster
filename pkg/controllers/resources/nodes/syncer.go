@@ -141,6 +141,23 @@ func modifyController(ctx *synccontext.RegisterContext, nodeService nodeservice.
 	go func() {
 		nodeService.Start(ctx.Context)
 	}()
+	podList := &corev1.PodList{}
+	err := ctx.PhysicalManager.GetClient().List(ctx.Context, podList, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			"vcluster.loft.sh/managed-by": translate.Suffix,
+		}),
+	})
+	if err != nil {
+		klog.Errorf("error listing pods: %v", err)
+	} else {
+		klog.Infof("edgewize.FakeNodes found %d pods", len(podList.Items))
+		for _, pod := range podList.Items {
+			if pod.Spec.NodeName != "" {
+				edgewize.AddFakeNode(pod.Spec.NodeName)
+				klog.Infof("edgewize.FakeNodes added fake node %s", pod.Spec.NodeName)
+			}
+		}
+	}
 
 	return builder.Watches(source.NewKindWithCache(&corev1.Pod{}, ctx.PhysicalManager.GetCache()), handler.EnqueueRequestsFromMapFunc(func(object client.Object) []reconcile.Request {
 		pod, ok := object.(*corev1.Pod)

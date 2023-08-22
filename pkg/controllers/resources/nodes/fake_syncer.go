@@ -3,6 +3,7 @@ package nodes
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/loft-sh/vcluster/pkg/edgewize"
 
@@ -108,6 +109,9 @@ func newGUID() string {
 }
 
 func CreateFakeNode(ctx context.Context, nodeServiceProvider nodeservice.NodeServiceProvider, virtualClient client.Client, name types.NamespacedName) error {
+	if !needCreateFakeNode() {
+		return nil
+	}
 	nodeServiceProvider.Lock()
 	defer nodeServiceProvider.Unlock()
 
@@ -225,6 +229,9 @@ func CreateFakeNode(ctx context.Context, nodeServiceProvider nodeservice.NodeSer
 }
 
 func UpdateFakeNode(ctx context.Context, nodeServiceProvider nodeservice.NodeServiceProvider, virtualClient client.Client, name types.NamespacedName) error {
+	if !needCreateFakeNode() {
+		return nil
+	}
 	nodeServiceProvider.Lock()
 	defer nodeServiceProvider.Unlock()
 	var err error
@@ -320,4 +327,8 @@ func filterOutPhysicalDaemonSets(pl *corev1.PodList) []corev1.Pod {
 		}
 	}
 	return podsNoDaemonSets
+}
+
+func needCreateFakeNode() bool {
+	return os.Getenv("DISABLE_FAKENODE") != "true"
 }
