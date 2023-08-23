@@ -130,6 +130,8 @@ func New(ctx *synccontext.RegisterContext) (syncer.Object, error) {
 	virtualLogsPath := filepath.Join(virtualPath, "log")
 	virtualKubeletPath := filepath.Join(virtualPath, "kubelet")
 
+	edgewize.InitFakeNode(ctx)
+
 	return &podSyncer{
 		NamespacedTranslator: namespacedTranslator,
 
