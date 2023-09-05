@@ -3,7 +3,9 @@ package nodes
 import (
 	"context"
 	"fmt"
+	"k8s.io/klog/v2"
 	"os"
+	"time"
 
 	"github.com/loft-sh/vcluster/pkg/edgewize"
 
@@ -30,12 +32,14 @@ var (
 
 func NewFakeSyncer(ctx *synccontext.RegisterContext, nodeService nodeservice.NodeServiceProvider) (syncer.Object, error) {
 	return &fakeNodeSyncer{
-		nodeServiceProvider: nodeService,
+		nodeServiceProvider:  nodeService,
+		fakeNodeUpdatePeriod: ctx.Options.FakeNodeUpdatePeriod,
 	}, nil
 }
 
 type fakeNodeSyncer struct {
-	nodeServiceProvider nodeservice.NodeServiceProvider
+	nodeServiceProvider  nodeservice.NodeServiceProvider
+	fakeNodeUpdatePeriod int
 }
 
 func (r *fakeNodeSyncer) Resource() client.Object {
@@ -331,4 +335,40 @@ func filterOutPhysicalDaemonSets(pl *corev1.PodList) []corev1.Pod {
 
 func needCreateFakeNode() bool {
 	return os.Getenv("DISABLE_FAKENODE") != "true"
+}
+
+func (r *fakeNodeSyncer) Updater(ctx *synccontext.RegisterContext) {
+	go r.updateWithTimer(ctx)
+}
+
+func (r *fakeNodeSyncer) updateWithTimer(ctx *synccontext.RegisterContext) {
+	period := time.Second * time.Duration(r.fakeNodeUpdatePeriod)
+	timer := time.NewTimer(period)
+	for {
+		select {
+		case <-timer.C:
+			go r.updateAllFakeNodes(ctx)
+			timer.Reset(period)
+		case <-ctx.Context.Done():
+			timer.Stop()
+			return
+		}
+	}
+}
+
+func (r *fakeNodeSyncer) updateAllFakeNodes(ctx *synccontext.RegisterContext) {
+	klog.Info("update all fake nodes")
+	cli := ctx.VirtualManager.GetClient()
+	nodes := &corev1.NodeList{}
+	err := cli.List(ctx.Context, nodes)
+	if err != nil {
+		klog.Errorf("list fake nodes error, err: %s", err)
+		return
+	}
+	for _, node := range nodes.Items {
+		err := UpdateFakeNode(ctx.Context, r.nodeServiceProvider, cli, types.NamespacedName{Name: node.Name})
+		if err != nil {
+			klog.Errorf("update fake node error, err: %s", err)
+		}
+	}
 }

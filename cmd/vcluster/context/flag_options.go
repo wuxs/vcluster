@@ -77,6 +77,8 @@ type VirtualClusterOptions struct {
 	HostMetricsBindAddress    string `json:"hostMetricsBindAddress,omitempty"`
 	VirtualMetricsBindAddress string `json:"virtualMetricsBindAddress,omitempty"`
 
+	FakeNodeUpdatePeriod int `json:"fakeNodeUpdatePeriod,omitempty"`
+
 	// DEPRECATED FLAGS
 	DeprecatedSyncNodeChanges          bool `json:"syncNodeChanges"`
 	DeprecatedDisableSyncResources     string
@@ -145,6 +147,8 @@ func AddFlags(flags *pflag.FlagSet, options *VirtualClusterOptions) {
 
 	flags.StringVar(&options.HostMetricsBindAddress, "host-metrics-bind-address", "0", "If set, metrics for the controller manager for the resources managed in the host cluster will be exposed at this address")
 	flags.StringVar(&options.VirtualMetricsBindAddress, "virtual-metrics-bind-address", "0", "If set, metrics for the controller manager for the resources managed in the virtual cluster will be exposed at this address")
+
+	flags.IntVar(&options.FakeNodeUpdatePeriod, "fake-node-update-period", 60, "The period at which the virtual cluster will update fake nodes in the host cluster. This is only used if --fake-nodes is true")
 
 	// Deprecated Flags
 	flags.BoolVar(&options.DeprecatedSyncNodeChanges, "sync-node-changes", false, "If enabled and --fake-nodes is false, the virtual cluster will proxy node updates from the virtual cluster to the host cluster. This is not recommended and should only be used if you know what you are doing.")

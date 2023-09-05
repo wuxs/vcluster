@@ -99,5 +99,9 @@ func (r *fakeSyncer) Register(ctx *synccontext.RegisterContext) error {
 			return err
 		}
 	}
+	updater, ok := r.syncer.(Updater)
+	if ok {
+		updater.Updater(ctx)
+	}
 	return controller.Complete(r)
 }
