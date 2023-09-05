@@ -52,3 +52,7 @@ type ControllerModifier interface {
 type Initializer interface {
 	Init(registerContext *synccontext.RegisterContext) error
 }
+
+type Updater interface {
+	Updater(ctx *synccontext.RegisterContext)
+}
