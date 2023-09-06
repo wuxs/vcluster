@@ -27,6 +27,7 @@ env:
 jobs:
   run:
     runs-on: ubuntu-18.04
+    if: github.repository	== 'loft-sh/vcluster' 
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js

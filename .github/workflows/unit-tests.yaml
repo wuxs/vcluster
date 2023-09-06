@@ -20,6 +20,7 @@ jobs:
   unit-test:
     name: Execute all tests
     runs-on: ubuntu-18.04
+    if: github.repository	== 'loft-sh/vcluster' 
     steps:
       - name: Set up Go 1.19
         uses: actions/setup-go@v1
