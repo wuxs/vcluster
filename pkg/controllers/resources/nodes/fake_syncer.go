@@ -360,7 +360,7 @@ func (r *fakeNodeSyncer) updateAllFakeNodes(ctx *synccontext.RegisterContext) {
 	klog.Info("update all fake nodes")
 	cli := ctx.VirtualManager.GetClient()
 	nodes := &corev1.NodeList{}
-	err := cli.List(ctx.Context, nodes)
+	err := cli.List(ctx.Context, nodes, client.HasLabels{"vcluster.loft.sh/fake-node"})
 	if err != nil {
 		klog.Errorf("list fake nodes error, err: %s", err)
 		return
