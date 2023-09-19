@@ -438,7 +438,6 @@ func (s *podSyncer) Sync(ctx *synccontext.SyncContext, pObj client.Object, vObj 
 	vPod := vObj.(*corev1.Pod)
 	pPod := pObj.(*corev1.Pod)
 
-	klog.Infof("Sync pod %s/%s, node: %s, vPod %v, pPod %v", vPod, pPod)
 	if vPod.Spec.NodeName != "" {
 		yes, err := edgewize.IsFakeNode(ctx.VirtualClient, vPod.Spec.NodeName)
 		if err != nil {
