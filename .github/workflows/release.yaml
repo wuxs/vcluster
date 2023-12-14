@@ -4,11 +4,11 @@ on:
   release:
     types: [created]
 env:
-  IMAGE_REPOSITORY: kubesphere
+  IMAGE_REPOSITORY: edgewize
 
 jobs:
   publish-cli:
-    if: github.repository	== 'loft-sh/vcluster' &&  startsWith(github.ref, 'refs/tags/v') == true
+    if: startsWith(github.ref, 'refs/tags/v') == true
     runs-on: macos-12
     permissions:
       id-token: write
@@ -44,7 +44,7 @@ jobs:
           pattern: "release/*"
           github-token: ${{ secrets.GITHUB_TOKEN }}
   publish-vcluster-image:
-    if: github.repository	== 'loft-sh/vcluster' &&  startsWith(github.ref, 'refs/tags/v') == true
+    if: startsWith(github.ref, 'refs/tags/v') == true
     runs-on: ubuntu-22.04
     permissions:
       id-token: write   # This is the key for OIDC!
@@ -87,7 +87,7 @@ jobs:
         run: |
           COSIGN_EXPERIMENTAL=1 cosign sign --force ${{ env.IMAGE_REPOSITORY }}/vcluster@${{ steps.docker_build.outputs.digest }}
   publish-vcluster-cli-image:
-    if: github.repository	== 'loft-sh/vcluster' &&  startsWith(github.ref, 'refs/tags/v') == true
+    if: startsWith(github.ref, 'refs/tags/v') == true
     runs-on: ubuntu-22.04
     permissions:
       id-token: write   # This is the key for OIDC!
