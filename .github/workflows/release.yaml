@@ -3,8 +3,6 @@ name: Release
 on:
   release:
     types: [created]
-env:
-  IMAGE_REPOSITORY: wuxs
 
 jobs:
   publish-cli:
@@ -53,14 +51,12 @@ jobs:
         run: |
           RELEASE_VERSION=$(echo $GITHUB_REF | sed -nE 's!refs/tags/!!p')
           echo "::set-output name=release_version::$RELEASE_VERSION"
-      - name: Get Docker tags
+      - name: Docker meta
         id: docker_meta
-        uses: crazy-max/ghaction-docker-meta@v2
+        uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ env.IMAGE_REPOSITORY }}/vcluster
-          tags: |
-            type=semver,pattern={{version}}
+            ${{ secrets.DOCKER_USERNAME }}/vcluster
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
@@ -93,14 +89,12 @@ jobs:
         run: |
           RELEASE_VERSION=$(echo $GITHUB_REF | sed -nE 's!refs/tags/!!p')
           echo "::set-output name=release_version::$RELEASE_VERSION"
-      - name: Get Docker tags
+      - name: Docker meta
         id: docker_meta
-        uses: crazy-max/ghaction-docker-meta@v2
+        uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ env.IMAGE_REPOSITORY }}/vcluster-cli
-          tags: |
-            type=semver,pattern={{version}}
+            ${{ secrets.DOCKER_USERNAME }}/vcluster-cli
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
