@@ -4,7 +4,7 @@ on:
   release:
     types: [created]
 env:
-  IMAGE_REPOSITORY: kubesphere
+  IMAGE_REPOSITORY: edgewize
 
 jobs:
   publish-cli:
